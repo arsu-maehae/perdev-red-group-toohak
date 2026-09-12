@@ -16,7 +16,7 @@ port = 54323
 
 [auth]
 enabled = true
-site_url = "http://127.0.0.1:5173/perdev-red-group-toohak/"
+site_url = "https://arsu-maehae.github.io/perdev-red-group-toohak/"
 additional_redirect_urls = ["http://127.0.0.1:5173/**", "https://arsu-maehae.github.io/perdev-red-group-toohak/**"]
 enable_signup = true
 enable_anonymous_sign_ins = true

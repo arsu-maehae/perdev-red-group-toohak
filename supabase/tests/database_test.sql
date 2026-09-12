@@ -3,7 +3,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(1);
+select plan(2);
 
 do $$
 declare v_missing text;
@@ -55,6 +55,26 @@ end $$;
 reset role;
 
 select pass('RLS ownership, report isolation, secrecy, normalization, exact-set matching, and scoring checks passed');
+
+-- Supabase anonymous users also have the authenticated database role. The JWT
+-- claim must keep them out of all host-owned direct table writes.
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"50000000-0000-0000-0000-000000000005","role":"authenticated","is_anonymous":true}',true);
+do $$
+begin
+  begin
+    insert into public.quizzes(owner_id,title,status)
+    values(auth.uid(),'Anonymous bypass attempt','draft');
+    raise exception 'ANONYMOUS_HOST_INSERT_WAS_ALLOWED';
+  exception when insufficient_privilege then
+    null;
+  when others then
+    if sqlerrm = 'ANONYMOUS_HOST_INSERT_WAS_ALLOWED' then raise; end if;
+    if sqlstate <> '42501' then raise; end if;
+  end;
+end $$;
+reset role;
+select pass('Anonymous authenticated sessions are blocked from host-owned direct writes');
 select * from finish();
 
 rollback;

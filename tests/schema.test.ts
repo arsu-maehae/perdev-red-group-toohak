@@ -1,8 +1,13 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const schema = readFileSync(resolve('supabase/migrations/202609120001_initial_schema.sql'), 'utf8')
+const migrationsDirectory = resolve('supabase/migrations')
+const schema = readdirSync(migrationsDirectory)
+  .filter((file) => file.endsWith('.sql'))
+  .sort()
+  .map((file) => readFileSync(resolve(migrationsDirectory, file), 'utf8'))
+  .join('\n')
 
 describe('backend security contract', () => {
   it('enables RLS on every player, host, and secret data table', () => {
@@ -15,6 +20,14 @@ describe('backend security contract', () => {
     expect(schema).toMatch(/revoke all on public\.session_questions,public\.session_answer_keys,public\.game_answers/)
     expect(schema).not.toMatch(/grant select on public\.session_answer_keys/)
   })
+  it('keeps anonymous player identities out of host-owned direct-write policies', () => {
+    expect(schema).toContain('alter extension citext set schema extensions')
+    expect(schema).toMatch(/create policy "hosts own quizzes"[\s\S]*?is_anonymous/)
+    expect(schema).toMatch(/create policy "hosts own questions"[\s\S]*?is_anonymous/)
+    expect(schema).toMatch(/create policy "hosts manage own images"[\s\S]*?is_anonymous/)
+    expect(schema).toMatch(/create policy "hosts delete own images"[\s\S]*?is_anonymous/)
+  })
+
   it('implements authoritative duplicate, late, phase, host, PIN, deadline, and reconnection controls', () => {
     for (const fragment of [
       'unique (question_id, player_id)', "v_session.phase<>'question_open'", 'v_session.phase_ends_at<now()',
