@@ -1,0 +1,23 @@
+import { ArrowRight, CheckCircle2, Clock3, RotateCcw, Send, Trophy } from 'lucide-react'
+import { useEffect, useState, type FormEvent } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { Layout } from '../components/Layout'
+import { AnswerGrid, ErrorBanner, Loading, QuestionMedia } from '../components/ui'
+import { getPracticeState, joinAssignment, submitPracticeAnswer } from '../lib/api'
+
+export function PracticePage() {
+  const { assignmentId = '' } = useParams(); const storageKey = `toohak-attempt:${assignmentId}`
+  const [attemptId, setAttemptId] = useState(() => localStorage.getItem(storageKey) ?? '')
+  const [nickname, setNickname] = useState(''); const [state, setState] = useState<any>(null); const [answer, setAnswer] = useState<unknown>(null)
+  const [error, setError] = useState(''); const [busy, setBusy] = useState(false)
+  useEffect(() => { if (attemptId) void load(attemptId) }, [attemptId])
+  async function load(id = attemptId) { setError(''); try { setState(await getPracticeState(id)); setAnswer(null) } catch (caught) { setError(caught instanceof Error ? caught.message : 'Could not load this assignment.') } }
+  async function join(event: FormEvent) { event.preventDefault(); if (nickname.trim().length < 2) { setError('Enter a nickname with at least 2 characters.'); return } setBusy(true); try { const result = await joinAssignment(assignmentId, nickname); localStorage.setItem(storageKey, result.attemptId); setAttemptId(result.attemptId) } catch (caught) { setError(caught instanceof Error ? caught.message : 'Could not start this assignment.') } finally { setBusy(false) } }
+  async function submit() { if (!state?.question) return; setBusy(true); try { setState(await submitPracticeAnswer(attemptId, state.question.id, answer)); setAnswer(null) } catch (caught) { setError(caught instanceof Error ? caught.message : 'Answer was not accepted.') } finally { setBusy(false) } }
+  function replay() { localStorage.removeItem(storageKey); setAttemptId(''); setState(null); setAnswer(null) }
+  const canSubmit = state?.question?.kind === 'typed' ? String(answer ?? '').trim() : Array.isArray(answer) ? answer.length : Boolean(answer)
+  if (!attemptId) return <Layout><section className="practice-intro"><span className="eyebrow">SELF-PACED CHALLENGE</span><h1>Ready when you are.</h1><p>Enter your name to begin. Your progress is saved on this device.</p>{error && <ErrorBanner message={error} />}<form onSubmit={join}><label><span>Nickname</span><input autoFocus maxLength={24} value={nickname} onChange={(event) => setNickname(event.target.value)} placeholder="Your name" /></label><button className="button button-primary button-large" disabled={busy}>Start challenge <ArrowRight /></button></form></section></Layout>
+  if (!state) return <Layout>{error ? <ErrorBanner message={error} onRetry={() => load()} /> : <Loading label="Restoring your progress…" />}</Layout>
+  if (state.completed) return <Layout><section className="practice-finish"><Trophy /><span className="eyebrow">CHALLENGE COMPLETE</span><h1>{state.score.toLocaleString()} points</h1><p>{state.correctCount} of {state.totalQuestions} correct · {Math.round((state.correctCount / Math.max(1, state.totalQuestions)) * 100)}% accuracy</p><div className="review-list">{state.review?.map((item: any, index: number) => <article key={item.questionId}><span>{item.correct ? <CheckCircle2 /> : '×'}</span><div><strong>{index + 1}. {item.prompt}</strong><p>{item.explanation}</p></div><b>+{item.points}</b></article>)}</div><div className="button-row"><button className="button button-primary" onClick={replay}><RotateCcw /> Replay</button><Link className="button button-secondary" to="/">Done</Link></div></section></Layout>
+  return <Layout wide><section className="practice-stage"><header><div><span className="eyebrow">{state.assignmentTitle}</span><h2>{state.nickname}</h2></div><div className="practice-progress"><span>{state.currentIndex + 1} / {state.totalQuestions}</span><div><i style={{ width: `${((state.currentIndex) / state.totalQuestions) * 100}%` }} /></div></div></header>{error && <ErrorBanner message={error} />}<div className="practice-question"><span className="question-kicker"><span>QUESTION {state.currentIndex + 1}</span><span><Clock3 /> Suggested: {state.question.timeLimit}s</span></span><h1>{state.question.prompt}</h1><QuestionMedia path={state.question.imagePath} /><AnswerGrid question={state.question} value={answer} onChange={setAnswer} /><button className="button button-dark button-large submit-answer" disabled={!canSubmit || busy} onClick={submit}><Send /> {busy ? 'Saving…' : state.currentIndex + 1 === state.totalQuestions ? 'Finish' : 'Submit & continue'}</button></div></section></Layout>
+}

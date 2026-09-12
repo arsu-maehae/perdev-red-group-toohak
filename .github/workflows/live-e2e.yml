@@ -1,0 +1,27 @@
+name: Live acceptance test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  host-and-three-players:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run against the deployed site and real Supabase project
+        run: npm run test:e2e:live
+        env:
+          TOOHAK_LIVE_E2E: '1'
+          TOOHAK_BASE_URL: https://arsu-maehae.github.io/perdev-red-group-toohak/
+          TOOHAK_E2E_HOST_EMAIL: ${{ secrets.TOOHAK_E2E_HOST_EMAIL }}
+          TOOHAK_E2E_HOST_PASSWORD: ${{ secrets.TOOHAK_E2E_HOST_PASSWORD }}
