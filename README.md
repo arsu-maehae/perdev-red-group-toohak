@@ -2,7 +2,7 @@
 
 An original, Kahoot-inspired multiplayer quiz app built with React, TypeScript, Vite, and Supabase. Hosts create quizzes and run synchronized rooms; authenticated anonymous players join with a PIN; PostgreSQL—not the browser—owns deadlines, answer validation, and scoring.
 
-> Deployment status: the codebase is production-configured, but a live URL is not claimed until the required GitHub repository and Supabase project are connected and the acceptance workflow passes.
+> Live deployment: https://arsu-maehae.github.io/perdev-red-group-toohak/ — GitHub CI/Pages, the hosted Supabase backend, and the one-host/three-player production acceptance scenario were verified on 2026-09-13.
 
 ## What is implemented
 
@@ -64,6 +64,8 @@ The Vite development URL includes the configured repository base: `http://localh
 
 ## Hosted Supabase setup
 
+> Current backend: `toohak-red-group` (`tqzyiyburcwqsdykvlbm`) in Singapore (`ap-southeast-1`). Both committed migrations, Auth redirects, anonymous player sign-in, Realtime publication, RLS/RPC controls, and the 5 MiB storage limit are deployed.
+
 1. Create a Supabase project on the free plan unless you intentionally approve another plan. Do not paste its database password or secret/service-role key into chat, issues, source files, or any `VITE_` variable.
 2. In Authentication → Providers, enable anonymous sign-ins. Configure CAPTCHA/Turnstile before public promotion.
 3. Add these Auth redirect URLs, replacing the username only if the repository owner changes:
@@ -83,17 +85,18 @@ The only frontend values are the project URL and **publishable** key. Supabase d
 
 ## GitHub repository and Pages
 
-Create the exact repository `perdev-red-group-toohak`, then push `main`. In repository Settings → Secrets and variables → Actions, add:
-
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_PUBLISHABLE_KEY`
-- `TOOHAK_E2E_HOST_EMAIL` and `TOOHAK_E2E_HOST_PASSWORD` for a dedicated, non-admin acceptance-test host
-
-In Settings → Pages, select **GitHub Actions** as the source. The deploy workflow uses the required Vite base `/perdev-red-group-toohak/`; the expected URL is:
+The production repository is [arsu-maehae/perdev-red-group-toohak](https://github.com/arsu-maehae/perdev-red-group-toohak), with GitHub Actions selected as the Pages source. The public deployment is:
 
 `https://arsu-maehae.github.io/perdev-red-group-toohak/`
 
-Pushes to `main` test, build, and deploy. Run **Live acceptance test** manually after backend setup. Do not call the deployment verified until both workflows are green and the live site can complete a real host/three-player session.
+In repository **Settings → Secrets and variables → Actions**, the browser-safe build configuration is stored as repository variables:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
+
+The optional **Live acceptance test** workflow additionally expects `TOOHAK_E2E_HOST_EMAIL` and `TOOHAK_E2E_HOST_PASSWORD` as repository secrets for a dedicated, non-admin test host. These are not required by the application or normal Pages deployments.
+
+Every push to `main` runs CI, builds the repository subpath, and deploys Pages. The production acceptance scenario was also executed directly against the public site with temporary test accounts; all temporary host, player, quiz, and session data was removed afterward.
 
 ## Authoritative rules
 
@@ -120,7 +123,7 @@ Pushes to `main` test, build, and deploy. Run **Live acceptance test** manually 
 | Command | Coverage |
 | --- | --- |
 | `npm test` | validation, normalization, scoring, exact multiple-select, CSV escaping, RLS/secret contract, PIN/phase/late/duplicate/deadline/reconnection controls in the migration |
-| `npx supabase test db` | executable database assertions for RLS, answer-key grants, normalization, exact sets, and scoring |
+| `npx supabase test db` | executable database assertions for RLS ownership, anonymous/host separation, answer-key grants, normalization, exact sets, and scoring |
 | `npm run test:e2e:live` | real deployed Supabase; one host + three independent browser contexts; create/publish/join/refresh/answer/reveal/podium/report |
 
 The live suite deliberately skips unless `TOOHAK_LIVE_E2E=1` and secure host credentials are present. It never substitutes localStorage multiplayer, simulated players, or fake API responses.
@@ -137,11 +140,11 @@ The application enforces a target cap of 50 active players per room, but that ca
 - **PIN invalid:** rooms accept joins only while in an unlocked lobby and before the 12-hour expiry.
 - **Images fail:** apply the migration, use a supported image under 5 MB, and check the `quiz-images` bucket policies.
 - **Live updates pause:** polling still reconciles state every two seconds; confirm Realtime publication/settings and RLS migration.
-- **Pages shows unconfigured backend:** add the two GitHub Actions secrets and rerun the Pages workflow.
+- **Pages shows unconfigured backend:** verify the two GitHub Actions repository variables and rerun the Pages workflow.
 
 ## Verified provider/dependency assumptions
 
-Provider requirements were checked against official Vite, GitHub, and Supabase documentation on 2026-09-12. Vite requires the repository base and a build workflow for Pages; Supabase's current browser client uses a URL plus publishable key, persisted Auth sessions, and authenticated anonymous users. The committed lockfile is the reproducible dependency source; Dependabot or a reviewed lockfile update should handle future upgrades.
+Provider requirements were checked against official Vite, GitHub, and Supabase documentation on 2026-09-13. Vite requires the repository base and a build workflow for Pages; Supabase's current browser client uses a URL plus publishable key, persisted Auth sessions, and authenticated anonymous users. The committed lockfile is the reproducible dependency source; Dependabot or a reviewed lockfile update should handle future upgrades.
 
 - [Vite static deployment guide](https://vite.dev/guide/static-deploy.html#github-pages)
 - [GitHub Pages custom Actions workflow](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)

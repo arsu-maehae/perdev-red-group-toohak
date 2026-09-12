@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer'
 import { expect, test, type BrowserContext, type Page } from '@playwright/test'
 
 const live = process.env.TOOHAK_LIVE_E2E === '1'
@@ -62,6 +63,17 @@ test.describe('live Supabase vertical slice', () => {
     await expect(page.getByText('What a finish!')).toBeVisible()
     await page.getByRole('link', { name: 'View full report' }).click()
     await expect(page.getByText('3', { exact: true }).first()).toBeVisible()
+    const downloadPromise = page.waitForEvent('download')
+    await page.getByRole('button', { name: 'Download CSV' }).click()
+    const download = await downloadPromise
+    expect(download.suggestedFilename()).toMatch(/^toohak-session-.+\.csv$/)
+    const stream = await download.createReadStream()
+    const chunks: Buffer[] = []
+    for await (const chunk of stream) chunks.push(Buffer.from(chunk))
+    const csv = Buffer.concat(chunks).toString('utf8')
+    expect(csv.charCodeAt(0)).toBe(0xfeff)
+    expect(csv).toContain('"Nickname"')
+    expect(csv).toContain('"Which answer is correct?"')
     for (const context of contexts) await context.close()
   })
 })
