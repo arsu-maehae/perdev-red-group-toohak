@@ -61,12 +61,18 @@ export function QuizEditorPage() {
     setError('')
     if (publish && errors.length) { setError(errors.join(' · ')); return }
     setSaving(true)
-    try { const id = await saveQuiz({ ...quiz, status: publish ? 'published' : quiz.status }); setDirty(false); if (!quiz.id) navigate(`/quiz/${id}/edit`, { replace: true }); else setQuiz((value) => ({ ...value, status: publish ? 'published' : value.status })) }
+    try {
+      const status = publish ? 'published' : quiz.status
+      const id = await saveQuiz({ ...quiz, status })
+      setQuiz((value) => ({ ...value, id, status }))
+      if (!quiz.id) navigate(`/quiz/${id}/edit`, { replace: true })
+      setDirty(false)
+    }
     catch (caught) { setError(caught instanceof Error ? caught.message : 'Could not save the quiz.') } finally { setSaving(false) }
   }
 
   return <div className="editor-shell">
-    <header className="editor-topbar"><Link className="icon-button" to="/dashboard" aria-label="Back to dashboard"><ArrowLeft /></Link><input className="title-input" aria-label="Quiz title" value={quiz.title} maxLength={120} onChange={(event) => changeQuiz({ title: event.target.value })} /><span className={`save-state ${dirty ? 'dirty' : ''}`}>{dirty ? 'Unsaved changes' : <><Check /> Saved</>}</span><Link className="button button-secondary" to={quiz.id ? `/quiz/${quiz.id}/preview` : '#'} aria-disabled={!quiz.id}><Eye /> Preview</Link><button className="button button-secondary" onClick={() => persist(false)} disabled={saving}><Save /> Save</button><button className="button button-primary" onClick={() => persist(true)} disabled={saving}>Publish</button></header>
+    <header className="editor-topbar"><Link className="icon-button" to="/dashboard" aria-label="Back to dashboard"><ArrowLeft /></Link><input className="title-input" aria-label="Quiz title" value={quiz.title} maxLength={120} onChange={(event) => changeQuiz({ title: event.target.value })} /><span className={`save-state ${dirty ? 'dirty' : ''}`}>{saving ? 'Saving…' : dirty ? 'Unsaved changes' : <><Check /> Saved</>}</span><Link className="button button-secondary" to={quiz.id ? `/quiz/${quiz.id}/preview` : '#'} aria-disabled={!quiz.id}><Eye /> Preview</Link><button className="button button-secondary" onClick={() => persist(false)} disabled={saving}><Save /> Save</button><button className="button button-primary" onClick={() => persist(true)} disabled={saving}>Publish</button></header>
     {error && <div className="editor-error"><ErrorBanner message={error} /></div>}
     <aside className="question-rail"><div className="rail-heading"><strong>Questions</strong><span>{quiz.questions.length}</span></div>{quiz.questions.map((item, index) => <button className={selected === index ? 'question-thumb active' : 'question-thumb'} key={item.id ?? index} onClick={() => setSelected(index)}><span>{index + 1}</span><div><strong>{item.prompt || 'Untitled question'}</strong><small>{kindLabels[item.kind]} · {item.timeLimit}s</small></div></button>)}<button className="add-question" onClick={addQuestion}><Plus /> Add question</button></aside>
     <main className="question-canvas">
